@@ -6,7 +6,7 @@ from .models import Course, CourseReview, LessonTest, Module, Submission
 class LessonMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = LessonTest
-        fields = "__all__"
+        fields = ("id", "title", "task_text", "expected_output", "starter_code", "order", "module")
 
 
 class ModuleMiniSerializer(serializers.ModelSerializer):
@@ -14,7 +14,7 @@ class ModuleMiniSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Module
-        fields = "__all__"
+        fields = ("id", "title", "order", "course", "lessons")
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -23,7 +23,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = "__all__"
+        fields = ("id", "owner", "title", "description", "is_free", "created_at", "modules")
         read_only_fields = ("owner", "created_at", "modules")
 
 
@@ -35,13 +35,12 @@ class CourseWriteSerializer(serializers.ModelSerializer):
 
 
 class ModuleSerializer(serializers.ModelSerializer):
-    course_detail = CourseSerializer(source="course", read_only=True)
     lessons = LessonMiniSerializer(many=True, read_only=True)
 
     class Meta:
         model = Module
-        fields = "__all__"
-        read_only_fields = ("course_detail", "lessons")
+        fields = ("id", "course", "title", "order", "lessons")
+        read_only_fields = ("lessons",)
 
 
 class ModuleWriteSerializer(serializers.ModelSerializer):
@@ -51,12 +50,9 @@ class ModuleWriteSerializer(serializers.ModelSerializer):
 
 
 class LessonTestSerializer(serializers.ModelSerializer):
-    module_detail = ModuleMiniSerializer(source="module", read_only=True)
-
     class Meta:
         model = LessonTest
         fields = "__all__"
-        read_only_fields = ("module_detail",)
 
 
 class LessonTestWriteSerializer(serializers.ModelSerializer):
@@ -66,12 +62,10 @@ class LessonTestWriteSerializer(serializers.ModelSerializer):
 
 
 class SubmissionSerializer(serializers.ModelSerializer):
-    lesson_detail = LessonTestSerializer(source="lesson", read_only=True)
-
     class Meta:
         model = Submission
         fields = "__all__"
-        read_only_fields = ("user", "output", "status", "created_at", "lesson_detail")
+        read_only_fields = ("user", "output", "status", "created_at")
 
 
 class CourseReviewSerializer(serializers.ModelSerializer):
