@@ -13,17 +13,7 @@ from rest_framework.response import Response
 
 from .models import Course, CourseReview, LessonTest, Module, Submission
 from .permissions import IsOwnerOrReadOnly
-from .serializers import (
-    CodeRunRequestSerializer,
-    CourseReviewSerializer,
-    CourseSerializer,
-    CourseWriteSerializer,
-    LessonTestSerializer,
-    LessonTestWriteSerializer,
-    ModuleSerializer,
-    ModuleWriteSerializer,
-    SubmissionSerializer,
-)
+from .serializers import *
 
 
 def run_python_code(code: str, timeout_sec: int = 2):
