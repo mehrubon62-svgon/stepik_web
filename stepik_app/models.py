@@ -72,3 +72,18 @@ class Submission(models.Model):
 
     def __str__(self):
         return f"Submission<{self.user_id}:{self.lesson_id}:{self.status}>"
+
+
+class CourseReview(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="course_reviews")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="reviews")
+    rating = models.PositiveSmallIntegerField(default=5)
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("user", "course")
+
+    def __str__(self):
+        return f"Review<{self.user_id}:{self.course_id}:{self.rating}>"

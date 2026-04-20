@@ -2,17 +2,20 @@ import os
 import subprocess
 import tempfile
 
+from django.db.models import Avg
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Course, Module, LessonTest, Submission
+from .models import Course, CourseReview, LessonTest, Module, Submission
 from .permissions import IsOwnerOrReadOnly
 from .serializers import (
     CodeRunRequestSerializer,
+    CourseReviewSerializer,
     CourseSerializer,
     CourseWriteSerializer,
     LessonTestSerializer,
@@ -67,6 +70,18 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny], url_path="rating")
+    def rating(self, request, pk=None):
+        course = self.get_object()
+        stats = course.reviews.aggregate(avg_rating=Avg("rating"))
+        return Response(
+            {
+                "course_id": course.id,
+                "reviews_count": course.reviews.count(),
+                "avg_rating": round(stats["avg_rating"], 2) if stats["avg_rating"] is not None else None,
+            }
+        )
 
 
 class ModuleViewSet(viewsets.ModelViewSet):
@@ -255,3 +270,50 @@ class SubmissionViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return Submission.objects.filter(user=self.request.user).select_related("lesson", "lesson__module")
+
+
+class CourseReviewViewSet(viewsets.ModelViewSet):
+    serializer_class = CourseReviewSerializer
+
+    def get_queryset(self):
+        return CourseReview.objects.select_related("user", "course")
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            permission_classes = [permissions.AllowAny]
+        else:
+            permission_classes = [permissions.IsAuthenticated]
+        return [p() for p in permission_classes]
+
+    def perform_create(self, serializer):
+        course_id = self.request.data.get("course")
+        course = get_object_or_404(Course, id=course_id)
+
+        has_correct_submission = Submission.objects.filter(
+            user=self.request.user,
+            status=Submission.Status.CORRECT,
+            lesson__module__course=course,
+        ).exists()
+
+        if not has_correct_submission:
+            raise PermissionDenied("You can review only after solving at least one test in this course.")
+
+        serializer.save(user=self.request.user, course=course)
+
+    def update(self, request, *args, **kwargs):
+        review = self.get_object()
+        if review.user_id != request.user.id:
+            return Response({"detail": "You can edit only your review."}, status=403)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        review = self.get_object()
+        if review.user_id != request.user.id:
+            return Response({"detail": "You can edit only your review."}, status=403)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        review = self.get_object()
+        if review.user_id != request.user.id:
+            return Response({"detail": "You can delete only your review."}, status=403)
+        return super().destroy(request, *args, **kwargs)

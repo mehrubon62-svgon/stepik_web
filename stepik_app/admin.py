@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Course, LessonTest, Module, Submission
+from .models import Course, CourseReview, LessonTest, Module, Submission
 
 
 class ModuleInline(admin.TabularInline):
@@ -49,5 +49,14 @@ class SubmissionAdmin(admin.ModelAdmin):
         "lesson__module__course__title",
         "output",
     )
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
+
+
+@admin.register(CourseReview)
+class CourseReviewAdmin(admin.ModelAdmin):
+    list_display = ("id", "course", "user", "rating", "created_at")
+    list_filter = ("rating", "created_at", "course")
+    search_fields = ("course__title", "user__username", "comment")
     ordering = ("-created_at",)
     readonly_fields = ("created_at",)
