@@ -3,13 +3,24 @@ import subprocess
 import tempfile
 
 from django.shortcuts import get_object_or_404
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Course, Module, LessonTest, Submission
 from .permissions import IsOwnerOrReadOnly
-from .serializers import *
+from .serializers import (
+    CodeRunRequestSerializer,
+    CourseSerializer,
+    CourseWriteSerializer,
+    LessonTestSerializer,
+    LessonTestWriteSerializer,
+    ModuleSerializer,
+    ModuleWriteSerializer,
+    SubmissionSerializer,
+)
 
 
 def run_python_code(code: str, timeout_sec: int = 2):
@@ -41,7 +52,11 @@ def run_python_code(code: str, timeout_sec: int = 2):
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.select_related("owner").all()
-    serializer_class = CourseSerializer
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve"):
+            return CourseSerializer
+        return CourseWriteSerializer
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
@@ -56,7 +71,11 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 class ModuleViewSet(viewsets.ModelViewSet):
     queryset = Module.objects.select_related("course", "course__owner").all()
-    serializer_class = ModuleSerializer
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve"):
+            return ModuleSerializer
+        return ModuleWriteSerializer
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
@@ -95,7 +114,11 @@ class ModuleViewSet(viewsets.ModelViewSet):
 
 class LessonTestViewSet(viewsets.ModelViewSet):
     queryset = LessonTest.objects.select_related("module", "module__course", "module__course__owner").all()
-    serializer_class = LessonTestSerializer
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve"):
+            return LessonTestSerializer
+        return LessonTestWriteSerializer
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
@@ -131,6 +154,24 @@ class LessonTestViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Only course owner can delete lessons."}, status=403)
         return super().destroy(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        request_body=CodeRunRequestSerializer,
+        operation_description="Run user code and return output without correctness check.",
+        responses={
+            200: openapi.Response(
+                description="Execution result",
+                examples={
+                    "application/json": {
+                        "submission_id": 10,
+                        "mode": "test",
+                        "ok": True,
+                        "status": "tested",
+                        "output": "5",
+                    }
+                },
+            )
+        },
+    )
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated], url_path="test-code")
     def test_code(self, request, pk=None):
         lesson = self.get_object()
@@ -157,6 +198,24 @@ class LessonTestViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @swagger_auto_schema(
+        request_body=CodeRunRequestSerializer,
+        operation_description="Run user code and check output against lesson expected_output.",
+        responses={
+            200: openapi.Response(
+                description="Submission result",
+                examples={
+                    "application/json": {
+                        "submission_id": 11,
+                        "mode": "submit",
+                        "status": "correct",
+                        "is_correct": True,
+                        "output": "5",
+                    }
+                },
+            )
+        },
+    )
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated], url_path="submit-code")
     def submit_code(self, request, pk=None):
         lesson = self.get_object()

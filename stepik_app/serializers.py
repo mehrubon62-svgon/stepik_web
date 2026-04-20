@@ -24,6 +24,13 @@ class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = "__all__"
+        read_only_fields = ("owner", "created_at", "modules")
+
+
+class CourseWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = "__all__"
         read_only_fields = ("owner", "created_at")
 
 
@@ -31,6 +38,13 @@ class ModuleSerializer(serializers.ModelSerializer):
     course_detail = CourseSerializer(source="course", read_only=True)
     lessons = LessonMiniSerializer(many=True, read_only=True)
 
+    class Meta:
+        model = Module
+        fields = "__all__"
+        read_only_fields = ("course_detail", "lessons")
+
+
+class ModuleWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Module
         fields = "__all__"
@@ -42,6 +56,13 @@ class LessonTestSerializer(serializers.ModelSerializer):
     class Meta:
         model = LessonTest
         fields = "__all__"
+        read_only_fields = ("module_detail",)
+
+
+class LessonTestWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LessonTest
+        fields = "__all__"
 
 
 class SubmissionSerializer(serializers.ModelSerializer):
@@ -50,4 +71,8 @@ class SubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Submission
         fields = "__all__"
-        read_only_fields = ("user", "output", "status", "created_at")
+        read_only_fields = ("user", "output", "status", "created_at", "lesson_detail")
+
+
+class CodeRunRequestSerializer(serializers.Serializer):
+    code = serializers.CharField()
